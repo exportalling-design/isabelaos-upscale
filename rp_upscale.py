@@ -1,6 +1,7 @@
-
 import os
 import io
+import sys
+import types
 import base64
 import traceback
 from typing import Dict, Any
@@ -10,6 +11,19 @@ import numpy as np
 from PIL import Image
 import torch
 import runpod
+
+# -------------------------------------------------
+# Shim para compatibilidad con basicsr/realesrgan
+# -------------------------------------------------
+try:
+    import torchvision.transforms.functional as TVF
+
+    shim = types.ModuleType("torchvision.transforms.functional_tensor")
+    shim.rgb_to_grayscale = TVF.rgb_to_grayscale
+    sys.modules["torchvision.transforms.functional_tensor"] = shim
+    print("[IsabelaOS Upscale] functional_tensor shim loaded ✅")
+except Exception as e:
+    print("[IsabelaOS Upscale] functional_tensor shim failed:", repr(e))
 
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from realesrgan import RealESRGANer
@@ -170,7 +184,7 @@ def handle_upscale(input_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "ok": False,
             "error": "MISSING_IMAGE_B64",
-            "received_keys": list(input_data.keys())
+            "received_keys": list(input_data.keys()),
         }
 
     outscale = _safe_int(input_data.get("outscale", 2), 2)
@@ -200,21 +214,22 @@ def _extract_input(event: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(event.get("input"), dict):
         return event["input"]
 
-    # fallback por si pruebas body directo
     return event
 
 
 def handler(event: Dict[str, Any]) -> Dict[str, Any]:
     try:
         print("[IsabelaOS Upscale] handler invoked")
-        print("[IsabelaOS Upscale] raw event keys =", list(event.keys()) if isinstance(event, dict) else type(event))
+        print(
+            "[IsabelaOS Upscale] raw event keys =",
+            list(event.keys()) if isinstance(event, dict) else type(event),
+        )
 
         input_data = _extract_input(event)
         print("[IsabelaOS Upscale] input keys =", list(input_data.keys()))
 
         action = _safe_text(input_data.get("action", "")).lower()
 
-        # si no viene action pero sí imagen, asumimos upscale
         if not action and input_data.get("image_b64"):
             action = "upscale"
 
@@ -223,7 +238,7 @@ def handler(event: Dict[str, Any]) -> Dict[str, Any]:
         if action == "health":
             return {
                 "ok": True,
-                "message": "IsabelaOS Upscale worker online (RealESRGAN)",
+                "message": "UPSCALE_OK_REAL",
                 "device": DEVICE,
                 "model_path": REALESRGAN_MODEL_PATH,
             }
