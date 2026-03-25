@@ -20,14 +20,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN python3 -m pip install --upgrade pip setuptools wheel
 
-# Torch GPU (CUDA 12.1)
 RUN pip install --no-cache-dir \
     torch==2.3.1+cu121 \
     torchvision==0.18.1+cu121 \
     --index-url https://download.pytorch.org/whl/cu121
 
-COPY requirements.upscale.txt /workspace/requirements.upscale.txt
-RUN pip install --no-cache-dir -r requirements.upscale.txt
+COPY requirements.txt /workspace/requirements.txt
+RUN pip install --no-cache-dir -r /workspace/requirements.txt
 
 COPY . /workspace
 
